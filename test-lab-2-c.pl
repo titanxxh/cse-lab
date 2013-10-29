@@ -183,6 +183,7 @@ sub checkdirmtime {
         oops1("$op did not change directory mtime");
     }
     if($st1[10] == $st2[10]){
+	print $st2[10], " ", $st2[10], "\n";
         oops1("$op did not change directory ctime");
     }
 }

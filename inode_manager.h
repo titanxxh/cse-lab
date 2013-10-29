@@ -36,10 +36,14 @@ class block_manager {
  private:
   disk *d;
   std::map <uint32_t, int> using_blocks;
+	unsigned long blk_bitmap[BLOCK_NUM / 8 / sizeof(unsigned long)];
+  void set_blk_bitmap(uint32_t pos, bool bit);
  public:
   block_manager();
   struct superblock sb;
+	uint32_t rest_blocks;
 
+	bool check_blk_bit(uint32_t pos);
   uint32_t alloc_block();
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
@@ -68,6 +72,7 @@ class block_manager {
 
 typedef struct inode {
   short type;
+	unsigned int isize;
   unsigned int size;
   unsigned int atime;
   unsigned int mtime;
@@ -80,6 +85,10 @@ class inode_manager {
   block_manager *bm;
   struct inode* get_inode(uint32_t inum);
   void put_inode(uint32_t inum, struct inode *ino);
+  uint32_t inode_csr;
+	long inode_bitmap[INODE_NUM / 8 / sizeof(long)];
+	bool check_inode_bit(uint32_t pos);
+	void set_inode_bitmap(uint32_t pos, bool b);
 
  public:
   inode_manager();
