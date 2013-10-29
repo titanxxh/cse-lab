@@ -130,9 +130,8 @@ yfs_client::setattr(inum ino, size_t size)
 				return IOERR;
 		if (read(ino, fin.size, 0, data) != OK)
 				return IOERR;
-		size_t bw;
-		std::string ns = "";
-		if (write(ino, ns.size(), size, ns.c_str(), bw) != OK)
+		data = data.substr(0, size);
+		if (ec->put(ino, data) != extent_protocol::OK)
 				return IOERR;
     return r;
 }
@@ -172,7 +171,10 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out, bo
 		data.append(std::string(name));
 		data.append(" ");
 		data.append(filename(ino_out));
+		//printf("!!xxh create data %s\n", data.c_str());
 		size_t bw;
+		if (setattr(parent, 0) != OK)
+				return IOERR;
 		if (write(parent, data.size(), 0, data.c_str(), bw) != OK)
 				return IOERR;
 	
@@ -285,8 +287,7 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
 		}
 		else
 		{
-				oridata = oridata.substr(0, off);
-				oridata.append(newdata);
+				oridata = oridata.replace(off, newdata.size(), newdata);
 				if (ec->put(ino, oridata) != extent_protocol::OK)
 						return IOERR;
 		}
@@ -331,7 +332,10 @@ int yfs_client::unlink(inum parent,const char *name)
 		}
 		if (!found)
 				return IOERR;
+		//printf("!!xxh unlink data %s\n", data.c_str());
 		size_t bw;
+		if (setattr(parent, 0) != OK)
+				return IOERR;
 		if (write(parent, data.size(), 0, data.c_str(), bw) != OK)
 				return IOERR;
     return r;

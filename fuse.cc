@@ -121,7 +121,7 @@ void
 fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
         int to_set, struct fuse_file_info *fi)
 {
-    //printf("!!!xxhserver_setattr 0x%x\n", to_set);
+    printf("fuseserver_setattr 0x%x\n", to_set);
     if (FUSE_SET_ATTR_SIZE & to_set) {
 
         /*
@@ -130,6 +130,7 @@ fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr,
          * create a struct stat, fill it in using getattr, 
          * and reply back using fuse_reply_attr.
          */
+				//printf("!!xxh fuse setattr inum %d newsize %d\n", ino, attr->st_size);
 				if (yfs->setattr(ino, attr->st_size) == yfs_client::OK)
 				{
 						fuseserver_getattr(req, ino, fi);
@@ -262,7 +263,7 @@ fuseserver_create(fuse_req_t req, fuse_ino_t parent, const char *name,
     yfs_client::status ret;
     if( (ret = fuseserver_createhelper( parent, name, mode, &e )) == yfs_client::OK ) {
         fuse_reply_create(req, &e, fi);
-        printf("OK: create returns.\n");
+        //printf("OK: create returns.\n");
     } else {
         if (ret == yfs_client::EXIST) {
             fuse_reply_err(req, EEXIST);
