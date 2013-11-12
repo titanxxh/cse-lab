@@ -201,7 +201,6 @@ fuseserver_write(fuse_req_t req, fuse_ino_t ino,
      * and reply the length of bytes_written using fuse_reply_write.
      */
 		size_t bw;
-		//printf("!!!xxh write ino %d size %d off %d\n", ino, size, off);
 		if (yfs->write(ino, size, off, buf, bw) == yfs_client::OK)
 				fuse_reply_write(req, bw);
 		else

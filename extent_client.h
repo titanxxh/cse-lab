@@ -4,6 +4,7 @@
 #define extent_client_h
 
 #include <string>
+#include "rpc/mystring.h"
 #include "extent_protocol.h"
 #include "extent_server.h"
 
@@ -19,7 +20,8 @@ class extent_client {
 			                        std::string &buf);
   extent_protocol::status getattr(extent_protocol::extentid_t eid, 
 				                          extent_protocol::attr &a);
-	extent_protocol::status put2(extent_protocol::extentid_t eid, const char *buf, uint32_t size);
+	//extent_protocol::status put2(extent_protocol::extentid_t eid, const char *buf, uint32_t size);
+	extent_protocol::status put2(extent_protocol::extentid_t eid, struct mystring str);
   extent_protocol::status put(extent_protocol::extentid_t eid, std::string buf);
   extent_protocol::status remove(extent_protocol::extentid_t eid);
 };

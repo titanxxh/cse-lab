@@ -23,11 +23,20 @@ int extent_server::create(uint32_t type, extent_protocol::extentid_t &id)
   return extent_protocol::OK;
 }
 
-int extent_server::put2(extent_protocol::extentid_t id, const char *buf, uint32_t size, int &)
+/*int extent_server::put2(extent_protocol::extentid_t id, const char *buf, uint32_t size, int &)
 {
   id &= 0x7fffffff;
   
   im->write_file(id, buf, size);
+  
+  return extent_protocol::OK;
+}*/
+
+int extent_server::put2(extent_protocol::extentid_t id, struct mystring str, int &)
+{
+  id &= 0x7fffffff;
+  
+  im->write_file(id, str.buf, str.size);
   
   return extent_protocol::OK;
 }
@@ -61,6 +70,7 @@ int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
     free(cbuf);
   }
 
+  printf("extent_server: get %lld buf %s\n", id, buf.c_str());
   return extent_protocol::OK;
 }
 

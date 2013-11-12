@@ -660,10 +660,53 @@ rpcs::rpcstate_t
 rpcs::checkduplicate_and_update(unsigned int clt_nonce, unsigned int xid,
                                 unsigned int xid_rep, char **b, int *sz)
 {
-    ScopedLock rwl(&reply_window_m_);
-
-    // Your lab3 code goes here
-    return NEW;
+	ScopedLock rwl(&reply_window_m_);
+	rpcs::rpcstate_t ret = NEW;
+	if (xid <= xid_rep)
+	{
+		ret = FORGOTTEN;
+	}
+	else
+	{
+		if (reply_window_.find(clt_nonce) == reply_window_.end())
+		{
+			reply_window_[clt_nonce] = std::list<reply_t>();
+		}
+		std::list<reply_t> rep = reply_window_[clt_nonce];
+		std::list<reply_t>::iterator itr;
+		for (itr = rep.begin(); itr != rep.end(); itr++)
+		{
+			if (itr->xid == xid)
+			{
+				if (itr->cb_present)
+					ret = INPROGRESS;
+				else
+				{
+					*sz = itr->sz;
+					*b = (char *)malloc(itr->sz);
+					memcpy(*b, itr->buf, itr->sz);
+					ret = DONE;
+				}
+				break;
+			}
+		}
+		if (ret == NEW)
+		{
+			rep.push_back(reply_t(xid));
+		}
+		itr = rep.begin();
+		while (itr != rep.end())
+		{
+			if (itr->xid <= xid_rep)
+			{
+				free(itr->buf);
+				itr = rep.erase(itr);
+			}
+			else
+				itr++;
+		}
+	}
+	return ret;
 }
 
 // rpcs::dispatch calls add_reply when it is sending a reply to an RPC,
@@ -674,9 +717,20 @@ rpcs::checkduplicate_and_update(unsigned int clt_nonce, unsigned int xid,
 void
 rpcs::add_reply(unsigned int clt_nonce, unsigned int xid, char *b, int sz)
 {
-    ScopedLock rwl(&reply_window_m_);
-
-    // Your lab3 code goes here
+	ScopedLock rwl(&reply_window_m_);
+	std::list<reply_t> rep = reply_window_[clt_nonce];
+	std::list<reply_t>::iterator itr;
+	for (itr = rep.begin(); itr != rep.end(); itr++)
+	{
+		if (itr->xid == xid)
+		{
+			itr->sz = sz;
+			itr->buf = (char *)malloc(sz);
+			memcpy(itr->buf, b, sz);
+			itr->cb_present = true;
+			break;
+		}
+	}
 }
 
 void
@@ -727,6 +781,13 @@ marshall::rawbytes(const char *p, int n)
 	}
 	memcpy(_buf+_ind, p, n);
 	_ind += n;
+}
+
+marshall &
+operator<<(marshall &m, struct mystring x)
+{
+	m.rawbytes(x.buf, x.size);
+	return m;
 }
 
 marshall &
@@ -927,6 +988,22 @@ operator>>(unmarshall &u, std::string &s)
 		u.rawbytes(s, sz);
 	return u;
 }
+
+unmarshall &
+operator>>(unmarshall &u, struct mystring &s)
+{
+	std::string str;
+	u >> s.size;
+	if(u.ok())
+		u.rawbytes(str, s.size);
+	if (s.buf)
+		s.buf = (char *)realloc(s.buf, s.size);
+	else
+		s.buf = (char *)malloc(s.size);
+	memcpy(s.buf, str.data(), s.size);
+	return u;
+}
+
 
 void
 unmarshall::rawbytes(std::string &ss, unsigned int n)

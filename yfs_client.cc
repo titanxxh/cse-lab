@@ -13,8 +13,10 @@ yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
   ec = new extent_client(extent_dst);
   lc = new lock_client(lock_dst);
+	lc->acquire(1);
   if (ec->put(1, "") != extent_protocol::OK)
       printf("error init root dir\n"); // XYB: init root dir
+	lc->release(1);
 }
 
 
@@ -265,9 +267,8 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
 		std::string oridata;
 		if (ec->get(ino, oridata) != extent_protocol::OK)
 				return IOERR;
-		std::string newdata(data);
-		newdata = newdata.substr(0, size);
-		if (off > oridata.size())
+		std::string newdata(data, size);
+		/*if (off > oridata.size())
 		{
 				char *buf = new char[off + size];
 				for (int i = 0; i < oridata.size(); i++)
@@ -276,7 +277,11 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
 						buf[i] = '\0';
 				for (int i = off; i < off + size; i++)
 						buf[i] = data[i - off];
-				extent_protocol::status s = ec->put2(ino, buf, off + size);
+				struct mystring mstr;
+				mstr.buf = buf;
+				mstr.size = off + size;
+
+				extent_protocol::status s = ec->put2(ino, mstr);
 				delete buf;
 				if (s != extent_protocol::OK)
 						return IOERR;
@@ -284,9 +289,15 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
 		else
 		{
 				oridata = oridata.replace(off, newdata.size(), newdata);
+				//printf("!!xxh: write ino %d, size %d, data\n", ino, size, oridata.c_str());
 				if (ec->put(ino, oridata) != extent_protocol::OK)
 						return IOERR;
-		}
+		}*/
+		if (off > oridata.size())
+				oridata = std::string(oridata.c_str(), off + size);
+		oridata = oridata.replace(off, newdata.size(), newdata);
+		if (ec->put(ino, oridata) != extent_protocol::OK)
+				return IOERR;
 		bytes_written = size;
 
     return r;
