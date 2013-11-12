@@ -44,26 +44,6 @@ extent_client::get(extent_protocol::extentid_t eid, std::string &buf)
   return ret;
 }
 
-/*extent_protocol::status
-extent_client::put2(extent_protocol::extentid_t eid, const char *buf, uint32_t size)
-{
-  extent_protocol::status ret = extent_protocol::OK;
-	int r;
-	ret = cl->call(extent_protocol::put2, eid, buf, size, r);
-  return ret;
-}*/
-
-extent_protocol::status
-extent_client::put2(extent_protocol::extentid_t eid, struct mystring str)
-{
-  extent_protocol::status ret = extent_protocol::OK;
-	int r;
-	ret = cl->call(extent_protocol::put2, eid, str, r);
-  return ret;
-}
-
-
-
 extent_protocol::status
 extent_client::put(extent_protocol::extentid_t eid, std::string buf)
 {

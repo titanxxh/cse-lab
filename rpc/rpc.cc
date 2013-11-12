@@ -784,13 +784,6 @@ marshall::rawbytes(const char *p, int n)
 }
 
 marshall &
-operator<<(marshall &m, struct mystring x)
-{
-	m.rawbytes(x.buf, x.size);
-	return m;
-}
-
-marshall &
 operator<<(marshall &m, bool x)
 {
 	m.rawbyte(x);
@@ -988,22 +981,6 @@ operator>>(unmarshall &u, std::string &s)
 		u.rawbytes(s, sz);
 	return u;
 }
-
-unmarshall &
-operator>>(unmarshall &u, struct mystring &s)
-{
-	std::string str;
-	u >> s.size;
-	if(u.ok())
-		u.rawbytes(str, s.size);
-	if (s.buf)
-		s.buf = (char *)realloc(s.buf, s.size);
-	else
-		s.buf = (char *)malloc(s.size);
-	memcpy(s.buf, str.data(), s.size);
-	return u;
-}
-
 
 void
 unmarshall::rawbytes(std::string &ss, unsigned int n)

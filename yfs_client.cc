@@ -14,6 +14,7 @@ yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
   ec = new extent_client(extent_dst);
   lc = new lock_client(lock_dst);
 	lc->acquire(1);
+	printf("!!xxh yfs: con pid %d\n", getpid());
   if (ec->put(1, "") != extent_protocol::OK)
       printf("error init root dir\n"); // XYB: init root dir
 	lc->release(1);
@@ -41,18 +42,30 @@ bool
 yfs_client::isfile(inum inum)
 {
     extent_protocol::attr a;
+		bool r;
 
+		int h;
+		h = lc->stat(inum);
+		if (h <= 0)
+			lc->acquire(inum);
+		printf("!!xxh yfs: isfile\n");
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         printf("error getting attr\n");
-        return false;
+        r = false;
+				goto out;
     }
 
     if (a.type == extent_protocol::T_FILE) {
         printf("isfile: %lld is a file\n", inum);
-        return true;
+        r = true;
+				goto out;
     } 
     printf("isfile: %lld is a dir\n", inum);
-    return false;
+		r = false;
+out:
+		if (h <= 0)
+				lc->release(inum);
+    return r;
 }
 
 bool
@@ -66,11 +79,15 @@ yfs_client::getfile(inum inum, fileinfo &fin)
 {
     int r = OK;
 
+		int h;
+		h = lc->stat(inum);
+		if (h <= 0)
+			lc->acquire(inum);
     printf("getfile %016llx\n", inum);
     extent_protocol::attr a;
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         r = IOERR;
-        goto release;
+        goto out;
     }
 
     fin.atime = a.atime;
@@ -79,7 +96,9 @@ yfs_client::getfile(inum inum, fileinfo &fin)
     fin.size = a.size;
     printf("getfile %016llx -> sz %llu\n", inum, fin.size);
 
-release:
+out:
+		if (h <= 0)
+				lc->release(inum);
     return r;
 }
 
@@ -88,17 +107,23 @@ yfs_client::getdir(inum inum, dirinfo &din)
 {
     int r = OK;
 
-    printf("getdir %016llx\n", inum);
+		int h;
+		h = lc->stat(inum);
+		if (h <= 0)
+			lc->acquire(inum);
+    printf("!!xxh yfs: getdir %llu\n", inum);
     extent_protocol::attr a;
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         r = IOERR;
-        goto release;
+        goto out;
     }
     din.atime = a.atime;
     din.mtime = a.mtime;
     din.ctime = a.ctime;
 
-release:
+out:
+		if (h <= 0)
+				lc->release(inum);
     return r;
 }
 
@@ -107,7 +132,7 @@ release:
     if ((xx) != extent_protocol::OK) { \
         printf("EXT_RPC Error: %s:%d \n", __FILE__, __LINE__); \
         r = IOERR; \
-        goto release; \
+        goto out; \
     } \
 } while (0)
 
@@ -122,15 +147,33 @@ yfs_client::setattr(inum ino, size_t size)
      * note: get the content of inode ino, and modify its content
      * according to the size (<, =, or >) content length.
      */
+		int h;
+		h = lc->stat(ino);
+		printf("!!xxh yfs: setattr h %d pid %d\n", h, getpid());
+		if (h <= 0)
+			lc->acquire(ino);
 		std::string data;
 		fileinfo fin;
 		if (getfile(ino, fin))
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		if (read(ino, fin.size, 0, data) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
+		printf("!!xxh yfs: setattr\n");
 		data = data.substr(0, size);
 		if (ec->put(ino, data) != extent_protocol::OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
+out:
+		if (h <= 0)
+				lc->release(ino);
     return r;
 }
 
@@ -144,38 +187,66 @@ yfs_client::create(inum parent, const char *name, mode_t mode, inum &ino_out, bo
      * note: lookup is what you need to check if file exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
+		lc->acquire(parent);
+		printf("!!xxh yfs: create pid %d\n", getpid());
 		bool found;
+		std::string data;
+		fileinfo fin;
+		size_t bw;
 		if (lookup(parent, name, found, ino_out) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		if (found)
-			return EXIST;
+		{
+        r = EXIST;
+        goto out;
+    }
 		if (isdir)
 		{
 				if (ec->create(extent_protocol::T_DIR, ino_out) != extent_protocol::OK)
-						return IOERR;
+				{
+						r = IOERR;
+        		goto out;
+				}
 		}
 		else
 		{
 				if (ec->create(extent_protocol::T_FILE, ino_out) != extent_protocol::OK)
-						return IOERR;
+				{
+						r = IOERR;
+        		goto out;
+				}
 		}
-		std::string data;
-		fileinfo fin;
 		if (getfile(parent, fin))
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		if (read(parent, fin.size, 0, data) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		data.append(" ");
 		data.append(std::string(name));
 		data.append(" ");
 		data.append(filename(ino_out));
 		//printf("!!xxh create data %s\n", data.c_str());
-		size_t bw;
 		if (setattr(parent, 0) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		if (write(parent, data.size(), 0, data.c_str(), bw) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 	
+out:
+		lc->release(parent);
     return r;
 }
 
@@ -189,14 +260,23 @@ yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
      * note: lookup file from parent dir according to name;
      * you should design the format of directory content.
      */
+		int h;
+		h = lc->stat(parent);
+		printf("!!xxh yfs: lookup h %d pid %d\n", h, getpid());
+		if (h <= 0)
+			lc->acquire(parent);
 		std::list<dirent> filelist;
-		if (readdir(parent, filelist) != OK)
-				return IOERR;
 		std::list<dirent>::iterator it;
+		if (readdir(parent, filelist) != OK)
+		{
+        r = IOERR;
+        goto out;
+    }
 		found = false;
-		//printf("!!xxh lookup name %s listsize %d\n", name, filelist.size());
+		printf("!!xxh lookup parent %llu name %s listsize %d\n", parent, name, filelist.size());
 		for (it = filelist.begin();it != filelist.end(); it++)
 		{
+				printf("!!xxh lookup %s\n", it->name.c_str());
 				if (it->name == std::string(name))
 				{
 						found = true;
@@ -205,6 +285,10 @@ yfs_client::lookup(inum parent, const char *name, bool &found, inum &ino_out)
 						break;
 				}
 		}
+out:
+		printf("!!xxh lookup parent %llu name %s found %d\n", parent, name, found);
+		if (h <= 0)
+				lc->release(parent);
     return r;
 }
 
@@ -218,23 +302,38 @@ yfs_client::readdir(inum dir, std::list<dirent> &list)
      * note: you should parse the dirctory content using your defined format,
      * and push the dirents to the list.
      */
+		int h;
+		h = lc->stat(dir);
+		printf("!!xxh yfs: readdir h %d pid %d\n", h, getpid());
+		if (h <= 0)
+			lc->acquire(dir);
 		std::string data;
 		fileinfo fin;
+    std::istringstream iss;
 		if (getfile(dir, fin))
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		if (read(dir, fin.size, 0, data) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 
-    std::istringstream iss(data);
-		//printf("!!xxh readdir data %s\n", data.c_str());
+		iss.str(data);
+		printf("!!xxh readdir data %s\n", data.c_str());
 		while (true)
 		{
 				dirent d;
 				iss >> d.name >> d.inum;
 				if (!iss) break;
-				//printf("!!xxh readdir name %s inum %d\n", d.name.c_str(), d.inum);
+				printf("!!xxh readdir name %s inum %llu\n", d.name.c_str(), d.inum);
 				list.push_back(d);
 		}
+out:
+		if (h <= 0)
+				lc->release(dir);
     return r;
 }
 
@@ -247,9 +346,19 @@ yfs_client::read(inum ino, size_t size, off_t off, std::string &data)
      * your lab2 code goes here.
      * note: read using ec->get().
      */
+		int h;
+		h = lc->stat(ino);
+		if (h <= 0)
+			lc->acquire(ino);
 		if (ec->get(ino, data) != extent_protocol::OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		data = data.substr(off, size);
+out:
+		if (h <= 0)
+				lc->release(ino);
     return r;
 }
 
@@ -264,42 +373,36 @@ yfs_client::write(inum ino, size_t size, off_t off, const char *data,
      * note: write using ec->put().
      * when off > length of original file, fill the holes with '\0'.
      */
+		int h;
+		h = lc->stat(ino);
+		printf("!!xxh yfs: write ino %llu h %d pid %d\n", ino, h, getpid());
+		if (h <= 0)
+			lc->acquire(ino);
 		std::string oridata;
-		if (ec->get(ino, oridata) != extent_protocol::OK)
-				return IOERR;
 		std::string newdata(data, size);
-		/*if (off > oridata.size())
+		if (ec->get(ino, oridata) != extent_protocol::OK)
 		{
-				char *buf = new char[off + size];
-				for (int i = 0; i < oridata.size(); i++)
-						buf[i] = oridata[i];
-				for (int i = oridata.size(); i < off; i++)
-						buf[i] = '\0';
-				for (int i = off; i < off + size; i++)
-						buf[i] = data[i - off];
-				struct mystring mstr;
-				mstr.buf = buf;
-				mstr.size = off + size;
-
-				extent_protocol::status s = ec->put2(ino, mstr);
-				delete buf;
-				if (s != extent_protocol::OK)
-						return IOERR;
-		}
-		else
-		{
-				oridata = oridata.replace(off, newdata.size(), newdata);
-				//printf("!!xxh: write ino %d, size %d, data\n", ino, size, oridata.c_str());
-				if (ec->put(ino, oridata) != extent_protocol::OK)
-						return IOERR;
-		}*/
+        r = IOERR;
+        goto out;
+    }
 		if (off > oridata.size())
+		{
+				int start = oridata.size();
 				oridata = std::string(oridata.c_str(), off + size);
+				for (int i = start; i < off; i++)
+						oridata[i] = '\0';
+		}
 		oridata = oridata.replace(off, newdata.size(), newdata);
 		if (ec->put(ino, oridata) != extent_protocol::OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		bytes_written = size;
 
+out:
+		if (h <= 0)
+				lc->release(ino);
     return r;
 }
 
@@ -312,20 +415,30 @@ int yfs_client::unlink(inum parent,const char *name)
      * note: you should remove the file using ec->remove,
      * and update the parent directory content.
      */
+		lc->acquire(parent);
 		std::string data = "";
 		std::string temp = "";
 		std::list<dirent> filelist;
-		if (readdir(parent, filelist) != OK)
-				return IOERR;
 		std::list<dirent>::iterator it;
 		bool found = false;
+		if (readdir(parent, filelist) != OK)
+		{
+        r = IOERR;
+        goto out;
+    }
 		for (it = filelist.begin();it != filelist.end(); it++)
 		{
 				if (it->name == std::string(name))
 				{
 						found = true;
+						lc->acquire(it->inum);
 						if (ec->remove(it->inum) != extent_protocol::OK)
-								return IOERR;
+						{
+								lc->release(it->inum);
+    				    r = IOERR;
+        				goto out;
+				    }
+						lc->release(it->inum);
 				}
 				else
 				{
@@ -338,13 +451,24 @@ int yfs_client::unlink(inum parent,const char *name)
 				}
 		}
 		if (!found)
-				return IOERR;
-		//printf("!!xxh unlink data %s\n", data.c_str());
+		{
+        r = IOERR;
+        goto out;
+    }
+		printf("!!xxh unlink data %s\n", data.c_str());
 		size_t bw;
 		if (setattr(parent, 0) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
 		if (write(parent, data.size(), 0, data.c_str(), bw) != OK)
-				return IOERR;
+		{
+        r = IOERR;
+        goto out;
+    }
+out:
+		lc->release(parent);
     return r;
 }
 

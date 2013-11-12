@@ -396,6 +396,7 @@ main(int argc, char *argv[])
             d1, strerror(errno));
     exit(1);
   }
+
   sprintf(d2, "%s/d%d", argv[2], getpid());
   if(access(d2, 0) != 0){
     fprintf(stderr, "test-lab-3-a: failed: access(%s) after mkdir %s: %s\n",
