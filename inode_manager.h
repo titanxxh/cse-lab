@@ -87,6 +87,7 @@ class inode_manager {
   void put_inode(uint32_t inum, struct inode *ino);
   uint32_t inode_csr;
 	long inode_bitmap[INODE_NUM / 8 / sizeof(long)];
+	long inode_used;
 	bool check_inode_bit(uint32_t pos);
 	void set_inode_bitmap(uint32_t pos, bool b);
 

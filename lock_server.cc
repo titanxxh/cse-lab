@@ -61,6 +61,8 @@ lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r)
 			}
 			else
 			{
+				if (locks_owner[lid] == clt)
+					break;
 				printf("acquire lock lid %llu from clt %d is locked status %d owner %d, waiting!!!\n", lid, clt, locks[lid], locks_owner[lid]);
 				VERIFY(pthread_cond_wait(&avail, &tmutex) == 0);
 			}

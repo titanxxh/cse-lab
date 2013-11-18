@@ -60,11 +60,17 @@ void
 block_manager::set_blk_bitmap(uint32_t pos, bool b)
 {
   if (b)
+	{
 		blk_bitmap[pos / (sizeof(unsigned long) * 8)] |=
 			1 << (pos % (sizeof(unsigned long) * 8));
+		rest_blocks --;
+	}
 	else
+	{
 		blk_bitmap[pos / (sizeof(unsigned long) * 8)] &=
 			~(1 << (pos % (sizeof(unsigned long) * 8)));
+		rest_blocks ++;
+	}
 }
 
 // The layout of disk should be like this:
@@ -101,6 +107,7 @@ block_manager::write_block(uint32_t id, const char *buf)
 inode_manager::inode_manager()
 {
   inode_csr = 0;
+	inode_used = 0;
   bm = new block_manager();
   bzero(inode_bitmap, sizeof(inode_bitmap));
   uint32_t root_dir = alloc_inode(extent_protocol::T_DIR);
@@ -120,11 +127,17 @@ void
 inode_manager::set_inode_bitmap(uint32_t pos, bool b)
 {
   if (b)
+	{
 		inode_bitmap[pos / (sizeof(long) * 8)] |=
 			1 << (pos % (sizeof(long) * 8));
+		inode_used ++;
+	}
 	else
+	{
 		inode_bitmap[pos / (sizeof(long) * 8)] &=
 			~(1 << (pos % (sizeof(long) * 8)));
+		inode_used --;
+	}
 }
 
 
@@ -168,7 +181,7 @@ inode_manager::free_inode(uint32_t inum)
 	}
 	if (in->isize >= NDIRECT)
 		free_inode(in->blocks[NDIRECT]);
-	bm->rest_blocks += it;
+	//bm->rest_blocks += it;
 	memset(in, 0, sizeof(struct inode));
 	put_inode(inum, in);
 	delete in;
@@ -298,7 +311,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
 			bm->write_block(b, buf + i * BLOCK_SIZE);
 		}
 		in->isize = bn;
-		bm->rest_blocks -= bn;
+		//bm->rest_blocks -= bn;
 		if (bn2 - bn > 0)
 		{
 			in->isize = NDIRECT + 1;
@@ -311,6 +324,7 @@ inode_manager::write_file(uint32_t inum, const char *buf, int size)
   } 
 	put_inode(inum, in);
 	delete in;
+	printf("!!xxh write_file done inum %d used %ld restblk %d\n", inum, inode_used, bm->rest_blocks);
   return;
 }
 

@@ -411,7 +411,7 @@ main(int argc, char *argv[])
   for(i = 0; i < sizeof(huge)-1; i++)
     huge[i] = '0';
 
-  printf("Create then read: ");
+  /*printf("Create then read: ");
   create1(d1, "f1", "aaa");
   check1(d2, "f1", "aaa");
   check1(d1, "f1", "aaa");
@@ -558,7 +558,7 @@ main(int argc, char *argv[])
   reap(pid);
   checkn(d1, "zz", 10);
   unlinkn(d1, "zz", 10);
-  printf("OK\n");
+  printf("OK\n");*/
 
   printf("Concurrent writes to different parts of same file: ");
   create1(d1, "www", huge);
