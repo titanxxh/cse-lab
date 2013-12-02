@@ -660,10 +660,69 @@ rpcs::rpcstate_t
 rpcs::checkduplicate_and_update(unsigned int clt_nonce, unsigned int xid,
                                 unsigned int xid_rep, char **b, int *sz)
 {
-    ScopedLock rwl(&reply_window_m_);
+  std::map <unsigned int, std::list <reply_t> >::iterator clt;
+  std::list <reply_t>::iterator itr;
 
-    // Your lab3 code goes here
-    return NEW;
+  rpcs::rpcstate_t ret ;
+
+  ScopedLock rwl(&reply_window_m_);
+  if(nonce_xid_rep_.find(clt_nonce) == nonce_xid_rep_.end() || xid_rep > nonce_xid_rep_[clt_nonce]) {
+    nonce_xid_rep_[clt_nonce] = xid_rep;
+  }
+  else {
+    xid_rep = nonce_xid_rep_[clt_nonce];
+  }
+  for(clt = reply_window_.begin(); clt != reply_window_.end(); clt++) {
+    if(clt->first == clt_nonce) {
+      for(itr = clt->second.begin(); itr != clt->second.end(); ) {
+        if(itr->xid <= xid_rep) {
+          free(itr->buf);
+          itr = clt->second.erase(itr);
+        }
+        else {
+          itr++;
+        }
+      }
+      break;
+    }
+  }
+
+  if(xid <= xid_rep) {
+    ret = FORGOTTEN;
+  }
+
+  else {
+    for(clt = reply_window_.begin(); clt != reply_window_.end(); clt++) {
+      if(clt->first == clt_nonce) {
+        for(itr = clt->second.begin(); itr != clt->second.end(); itr++) {
+          if(itr->xid == xid) {
+            break;
+          }
+        }
+        if(itr == clt->second.end()) {
+          //If its a new xid, add it to reply_window_
+          reply_t reply(xid);
+          clt->second.push_back(reply);
+          ret = NEW;
+        }
+        else {
+          if(itr->cb_present == false) {
+            ret = INPROGRESS;
+          }
+          else {
+            *sz = itr->sz ;
+            *b = (char *)malloc(itr->sz);
+            memcpy(*b, itr->buf, itr->sz);
+            ret = DONE;
+          }
+        }
+        break;
+      }
+    }
+    if(clt == reply_window_.end()) {
+    }
+  }
+  return ret ;
 }
 
 // rpcs::dispatch calls add_reply when it is sending a reply to an RPC,
@@ -674,9 +733,24 @@ rpcs::checkduplicate_and_update(unsigned int clt_nonce, unsigned int xid,
 void
 rpcs::add_reply(unsigned int clt_nonce, unsigned int xid, char *b, int sz)
 {
-    ScopedLock rwl(&reply_window_m_);
+  ScopedLock rwl(&reply_window_m_);
+  std::map <unsigned int, std::list <reply_t> >::iterator clt;
+  std::list <reply_t>::iterator itr;
 
-    // Your lab3 code goes here
+  for(clt = reply_window_.begin(); clt != reply_window_.end(); clt++){
+    if(clt->first == clt_nonce) {
+      for(itr = clt->second.begin(); itr != clt->second.end(); itr++) {
+        if(itr->xid == xid) {
+          itr->sz = sz ;
+          itr->buf = (char *)malloc(itr->sz);
+          memcpy(itr->buf, b, itr->sz);
+          itr->cb_present = true;
+          break;
+        }
+      }
+      break;
+    }
+  }
 }
 
 void

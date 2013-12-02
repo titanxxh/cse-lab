@@ -4,7 +4,7 @@
 #include <string>
 
 #include "lock_protocol.h"
-#include "lock_client.h"
+#include "lock_client_cache.h"
 
 //#include "yfs_protocol.h"
 #include "extent_client.h"
@@ -51,7 +51,7 @@ class yfs_client {
 
   int setattr(inum, size_t);
   int lookup(inum, const char *, bool &, inum &);
-  int create(inum, const char *, mode_t, inum &);
+  int create(inum, const char *, mode_t, inum &, bool isdir);
   int readdir(inum, std::list<dirent> &);
   int write(inum, size_t, off_t, const char *, size_t &);
   int read(inum, size_t, off_t, std::string &);

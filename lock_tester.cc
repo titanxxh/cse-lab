@@ -105,6 +105,7 @@ test3(void *x)
     check_grant(a);
     printf ("test3: client %d got lock\n", i);
     check_release(a);
+    printf ("test3: client %d release lock\n", i);
     lc[i]->release(a);
   }
   return 0;
@@ -121,6 +122,7 @@ test4(void *x)
     check_grant(a);
     printf ("test4: thread %d on client 0 got lock\n", i);
     check_release(a);
+    printf ("test4: thread %d on client 0 put lock\n", i);
     lc[0]->release(a);
   }
   return 0;
@@ -138,6 +140,7 @@ test5(void *x)
     check_grant(a);
     printf ("test5: client %d got lock\n", i);
     check_release(a);
+    printf ("test5: client %d put lock\n", i);
     if (i < 5) lc[0]->release(a);
     else lc[1]->release(a);
   }
