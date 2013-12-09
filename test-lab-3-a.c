@@ -396,6 +396,7 @@ main(int argc, char *argv[])
             d1, strerror(errno));
     exit(1);
   }
+
   sprintf(d2, "%s/d%d", argv[2], getpid());
   if(access(d2, 0) != 0){
     fprintf(stderr, "test-lab-3-a: failed: access(%s) after mkdir %s: %s\n",
@@ -418,7 +419,7 @@ main(int argc, char *argv[])
 
   printf("Unlink: ");
   unlink1(d2, "f1");
-  create1(d1, "fx1", "fxx"); /* checknot f1 fails w/o these */
+  create1(d1, "fx1", "fxx");
   unlink1(d1, "fx1");
   checknot(d1, "f1");
   checknot(d2, "f1");
@@ -430,7 +431,7 @@ main(int argc, char *argv[])
   check1(d2, "f3", "333");
   check1(d1, "f3", "333");
   unlink1(d1, "f3");
-  create1(d2, "fx2", "22"); /* checknot f3 fails w/o these */
+  create1(d2, "fx2", "22");
   unlink1(d2, "fx2");
   checknot(d2, "f3");
   checknot(d1, "f3");

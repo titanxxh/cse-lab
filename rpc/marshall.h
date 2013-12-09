@@ -12,6 +12,7 @@
 #include <inttypes.h>
 #include "lang/verify.h"
 #include "lang/algorithm.h"
+#include "mystring.h"
 
 struct req_header {
 	req_header(int x=0, int p=0, int c = 0, int s = 0, int xi = 0):
@@ -124,6 +125,7 @@ marshall& operator<<(marshall &, unsigned short);
 marshall& operator<<(marshall &, short);
 marshall& operator<<(marshall &, unsigned long long);
 marshall& operator<<(marshall &, const std::string &);
+marshall& operator<<(marshall &, struct mystring);
 
 class unmarshall {
 	private:
@@ -207,6 +209,7 @@ unmarshall& operator>>(unmarshall &, unsigned int &);
 unmarshall& operator>>(unmarshall &, int &);
 unmarshall& operator>>(unmarshall &, unsigned long long &);
 unmarshall& operator>>(unmarshall &, std::string &);
+unmarshall& operator>>(unmarshall &, struct mystring &);
 
 template <class C> marshall &
 operator<<(marshall &m, std::vector<C> v)
