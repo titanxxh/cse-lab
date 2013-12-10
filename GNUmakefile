@@ -48,7 +48,7 @@ hfiles1=rpc/fifo.h rpc/connection.h rpc/rpc.h rpc/marshall.h rpc/method_thread.h
 	lock_protocol.h lock_server.h lock_client.h gettime.h gettime.cc lang/verify.h \
         lang/algorithm.h
 hfiles2=yfs_client.h extent_client.h extent_protocol.h extent_server.h
-hfiles3=lock_client_cache.h lock_server_cache.h handle.h tprintf.h
+hfiles3=lock_client_cache.h lock_server_cache.h handle.h tprintf.h extent_client_cache.h
 hfiles4=log.h rsm.h rsm_protocol.h config.h paxos.h paxos_protocol.h rsm_state_transfer.h rsmtest_client.h tprintf.h
 hfiles5=rsm_state_transfer.h rsm_client.h
 rsm_files = rsm.cc paxos.cc config.cc log.cc handle.cc
@@ -98,6 +98,9 @@ ifeq ($(LAB7GE),1)
 endif
 ifeq ($(LAB4GE),1)
   yfs_client += lock_client_cache.cc
+endif
+ifeq ($(LAB5GE),1)
+  yfs_client += extent_client_cache.cc
 endif
 yfs_client : $(patsubst %.cc,%.o,$(yfs_client)) rpc/librpc.a
 

@@ -2,12 +2,24 @@
 // see lock_client.cache.h for protocol details.
 
 #include "lock_client_cache.h"
+#include "extent_client_cache.h"
 #include "rpc.h"
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
 #include "tprintf.h"
 
+lock_release_flush::lock_release_flush(extent_client *ecc)
+	:ec(ecc)
+{
+}
+
+void
+lock_release_flush::dorelease(lock_protocol::lockid_t lid)
+{
+	tprintf("xxh5: flush lid %llu to disk\n", lid);
+	ec->flush((extent_protocol::extentid_t)lid);
+}
 
 int lock_client_cache::last_port = 0;
 
@@ -132,6 +144,10 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
 	}
 	if (to_release)
 	{
+		if (lu)
+		{
+			lu->dorelease(lid);
+		}
 		lock_protocol::status ret = cl->call(lock_protocol::release, lid, id, r);
 		tprintf("lock_client: client %s call release lock %llu return (%lu)\n", id.c_str(), lid, (unsigned long)pthread_self());
 		ScopedLock lm(&lid_m);

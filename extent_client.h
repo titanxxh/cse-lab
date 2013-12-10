@@ -8,7 +8,7 @@
 #include "extent_server.h"
 
 class extent_client {
- private:
+ protected:
   rpcc *cl;
 
  public:
@@ -21,6 +21,7 @@ class extent_client {
 				                          extent_protocol::attr &a);
   extent_protocol::status put(extent_protocol::extentid_t eid, std::string buf);
   extent_protocol::status remove(extent_protocol::extentid_t eid);
+	virtual void flush(extent_protocol::extentid_t eid) = 0;
 };
 
 #endif 

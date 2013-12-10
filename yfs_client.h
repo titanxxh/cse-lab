@@ -7,13 +7,14 @@
 #include "lock_client_cache.h"
 
 //#include "yfs_protocol.h"
-#include "extent_client.h"
+#include "extent_client_cache.h"
 #include <vector>
 
 
 class yfs_client {
-  extent_client *ec;
-  lock_client *lc;
+  extent_client_cache *ec;
+  lock_client_cache *lc;
+	lock_release_user *lu;
  public:
 
   typedef unsigned long long inum;

@@ -1,6 +1,6 @@
 // yfs client.  implements FS operations using extent and lock server
 #include "yfs_client.h"
-#include "extent_client.h"
+#include "extent_client_cache.h"
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
@@ -11,8 +11,9 @@
 
 yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
-  ec = new extent_client(extent_dst);
-  lc = new lock_client_cache(lock_dst);
+  ec = new extent_client_cache(extent_dst);
+	lu = new lock_release_flush(ec);
+  lc = new lock_client_cache(lock_dst, lu);
 	lc->acquire(1);
 	printf("!!xxh yfs: con pid %d\n", getpid());
   if (ec->put(1, "") != extent_protocol::OK)
@@ -61,11 +62,11 @@ yfs_client::_isfile(inum inum)
     }
 
     if (a.type == extent_protocol::T_FILE) {
-        printf("isfile: %lld is a file\n", inum);
+        printf("!!xxh yfs: isfile: %lld is a file\n", inum);
         r = true;
 				goto out;
     } 
-    printf("isfile: %lld is a dir\n", inum);
+    printf("!!xxh yfs: isfile: %lld is a dir\n", inum);
 		r = false;
 out:
     return r;
@@ -100,7 +101,6 @@ yfs_client::_getfile(inum inum, fileinfo &fin)
 {
     int r = OK;
 
-    printf("getfile %016llx\n", inum);
     extent_protocol::attr a;
     if (ec->getattr(inum, a) != extent_protocol::OK) {
         r = IOERR;
@@ -111,7 +111,7 @@ yfs_client::_getfile(inum inum, fileinfo &fin)
     fin.mtime = a.mtime;
     fin.ctime = a.ctime;
     fin.size = a.size;
-    printf("getfile %016llx -> sz %llu\n", inum, fin.size);
+    printf("!!xxh yfs: getfile %llu -> sz %llu\n", inum, fin.size);
 
 out:
     return r;
@@ -217,7 +217,7 @@ yfs_client::_create(inum parent, const char *name, mode_t mode, inum &ino_out, b
      * note: lookup is what you need to check if file exist;
      * after create file or dir, you must remember to modify the parent infomation.
      */
-		printf("!!xxh yfs: create pid %d\n", getpid());
+		printf("!!xxh yfs: create %s pid %d\n", name, getpid());
 		bool found;
 		std::string data;
 		fileinfo fin;
@@ -275,6 +275,7 @@ yfs_client::_create(inum parent, const char *name, mode_t mode, inum &ino_out, b
     }
 	
 out:
+		printf("!!xxh yfs: create %llu done pid %d\n", ino_out, getpid());
     return r;
 }
 
@@ -466,11 +467,13 @@ int yfs_client::_unlink(inum parent,const char *name)
 		std::list<dirent> filelist;
 		std::list<dirent>::iterator it;
 		bool found = false;
+		printf("!!xxh unlink1 data %s\n", data.c_str());
 		if (_readdir(parent, filelist) != OK)
 		{
         r = IOERR;
         goto out;
     }
+		printf("!!xxh unlink2 data %s\n", data.c_str());
 		for (it = filelist.begin();it != filelist.end(); it++)
 		{
 				if (it->name == std::string(name))
